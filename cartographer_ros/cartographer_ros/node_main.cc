@@ -18,7 +18,10 @@
 #include "cartographer_ros/node_options.h"
 #include "cartographer_ros/ros_log_sink.h"
 #include "gflags/gflags.h"
-#include "tf2_ros/transform_listener.h"
+#include "cartographer_ros_msgs/srv/finish_trajectory.hpp"
+
+#include <rclcpp/rclcpp.hpp>
+#include <tf2_ros/transform_listener.h>
 
 DEFINE_string(configuration_directory, "",
               "First directory in which configuration files are searched, "
@@ -39,8 +42,9 @@ namespace cartographer_ros {
 namespace {
 
 void Run() {
+  const auto options = LoadOptions();
   constexpr double kTfBufferCacheTimeInSeconds = 1e6;
-  tf2_ros::Buffer tf_buffer{::ros::Duration(kTfBufferCacheTimeInSeconds)};
+  tf2_ros::Buffer tf_buffer{::tf2::durationFromSec(kTfBufferCacheTimeInSeconds)};
   tf2_ros::TransformListener tf(tf_buffer);
   NodeOptions node_options;
   TrajectoryOptions trajectory_options;
@@ -56,7 +60,7 @@ void Run() {
     node.StartTrajectoryWithDefaultTopics(trajectory_options);
   }
 
-  ::ros::spin();
+  rclcpp::spin(node.node_handle());
 
   node.FinishAllTrajectories();
   node.RunFinalOptimization();
@@ -78,10 +82,9 @@ int main(int argc, char** argv) {
   CHECK(!FLAGS_configuration_basename.empty())
       << "-configuration_basename is missing.";
 
-  ::ros::init(argc, argv, "cartographer_node");
-  ::ros::start();
+  ::rclcpp::init(argc, argv);
 
   cartographer_ros::ScopedRosLogSink ros_log_sink;
   cartographer_ros::Run();
-  ::ros::shutdown();
+  ::rclcpp::shutdown();
 }

@@ -27,8 +27,8 @@ namespace {
 constexpr double kTrajectoryLineStripMarkerScale = 0.07;
 constexpr double kConstraintMarkerScale = 0.025;
 
-::std_msgs::ColorRGBA ToMessage(const cartographer::io::FloatColor& color) {
-  ::std_msgs::ColorRGBA result;
+::std_msgs::msg::ColorRGBA ToMessage(const cartographer::io::FloatColor& color) {
+  ::std_msgs::msg::ColorRGBA result;
   result.r = color[0];
   result.g = color[1];
   result.b = color[2];
@@ -36,13 +36,13 @@ constexpr double kConstraintMarkerScale = 0.025;
   return result;
 }
 
-visualization_msgs::Marker CreateTrajectoryMarker(const int trajectory_id,
-                                                  const std::string& frame_id) {
-  visualization_msgs::Marker marker;
+visualization_msgs::msg::Marker CreateTrajectoryMarker(const int trajectory_id,
+                                                       const std::string& frame_id) {
+  visualization_msgs::msg::Marker marker;
   marker.ns = "Trajectory " + std::to_string(trajectory_id);
   marker.id = 0;
-  marker.type = visualization_msgs::Marker::LINE_STRIP;
-  marker.header.stamp = ::ros::Time::now();
+  marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+  marker.header.stamp = clock->now();
   marker.header.frame_id = frame_id;
   marker.color = ToMessage(cartographer::io::GetColor(trajectory_id));
   marker.scale.x = kTrajectoryLineStripMarkerScale;
@@ -51,8 +51,8 @@ visualization_msgs::Marker CreateTrajectoryMarker(const int trajectory_id,
   return marker;
 }
 
-void PushAndResetLineMarker(visualization_msgs::Marker* marker,
-                            std::vector<visualization_msgs::Marker>* markers) {
+void PushAndResetLineMarker(visualization_msgs::msg::Marker* marker,
+                            std::vector<visualization_msgs::msg::Marker>* markers) {
   if (marker->points.size() > 1) {
     markers->push_back(*marker);
     ++marker->id;
@@ -135,8 +135,8 @@ void MapBuilderBridge::SerializeState(const std::string& filename) {
 }
 
 bool MapBuilderBridge::HandleSubmapQuery(
-    cartographer_ros_msgs::SubmapQuery::Request& request,
-    cartographer_ros_msgs::SubmapQuery::Response& response) {
+    const std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Request> request,
+    std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Response> response) {
   cartographer::mapping::proto::SubmapQuery::Response response_proto;
   cartographer::mapping::SubmapId submap_id{request.trajectory_id,
                                             request.submap_index};
@@ -150,10 +150,10 @@ bool MapBuilderBridge::HandleSubmapQuery(
   CHECK(response_proto.textures_size() > 0)
       << "empty textures given for submap: " << submap_id;
 
-  response.submap_version = response_proto.submap_version();
+  response->submap_version = response_proto.submap_version();
   for (const auto& texture_proto : response_proto.textures()) {
-    response.textures.emplace_back();
-    auto& texture = response.textures.back();
+    response->textures.emplace_back();
+    auto& texture = response->textures.back();
     texture.cells.insert(texture.cells.begin(), texture_proto.cells().begin(),
                          texture_proto.cells().end());
     texture.width = texture_proto.width();
@@ -165,13 +165,13 @@ bool MapBuilderBridge::HandleSubmapQuery(
   return true;
 }
 
-cartographer_ros_msgs::SubmapList MapBuilderBridge::GetSubmapList() {
-  cartographer_ros_msgs::SubmapList submap_list;
-  submap_list.header.stamp = ::ros::Time::now();
+cartographer_ros_msgs::msg::SubmapList MapBuilderBridge::GetSubmapList(rclcpp::Clock::SharedPtr& clock) {
+  cartographer_ros_msgs::msg::SubmapList submap_list;
+  submap_list.header.stamp = clock->now();
   submap_list.header.frame_id = node_options_.map_frame;
   for (const auto& submap_id_data :
        map_builder_.pose_graph()->GetAllSubmapData()) {
-    cartographer_ros_msgs::SubmapEntry submap_entry;
+    cartographer_ros_msgs::msg::SubmapEntry submap_entry;
     submap_entry.trajectory_id = submap_id_data.id.trajectory_id;
     submap_entry.submap_index = submap_id_data.id.submap_index;
     submap_entry.submap_version = submap_id_data.data.submap->num_range_data();
