@@ -40,6 +40,11 @@
 
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <rclcpp/clock.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp/time.hpp>
+#include <rclcpp/time_source.hpp>
+
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <tf2_eigen/tf2_eigen.h>
 
@@ -140,6 +145,10 @@ Node::Node(const NodeOptions& node_options, tf2_ros::Buffer* const tf_buffer)
   wall_timers_.push_back(node_handle_->create_wall_timer(
     std::chrono::milliseconds(int(node_options_.pose_publish_period_sec * 1000)),
     std::bind(&Node::PublishTrajectoryStates, this)));
+
+  ts_ = std::make_shared<rclcpp::TimeSource>(node_handle_);
+  clock_ = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
+  ts_->attachClock(clock_);
 }
 
 Node::~Node() {
@@ -165,7 +174,7 @@ void Node::HandleSubmapQuery(
 
 void Node::PublishSubmapList() {
   carto::common::MutexLocker lock(&mutex_);
-  submap_list_publisher_->publish(map_builder_bridge_.GetSubmapList());
+  submap_list_publisher_->publish(map_builder_bridge_.GetSubmapList(clock_));
 }
 
 void Node::PublishTrajectoryStates() {
@@ -194,7 +203,7 @@ void Node::PublishTrajectoryStates() {
     } else {
       // If we do not publish a new point cloud, we still allow time of the
       // published poses to advance.
-      stamped_transform.header.stamp = rclcpp::Time::now();
+      stamped_transform.header.stamp = clock_->now();
     }
 
     if (trajectory_state.published_to_tracking != nullptr) {
