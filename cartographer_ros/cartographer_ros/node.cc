@@ -124,6 +124,8 @@ Node::Node(const NodeOptions& node_options, tf2_ros::Buffer* const tf_buffer)
       node_handle_->create_publisher<sensor_msgs::msg::PointCloud2>(
           kScanMatchedPointCloudTopic, custom_qos_profile);
 
+  tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node_handle_);
+
   wall_timers_.push_back(node_handle_->create_wall_timer(
     std::chrono::milliseconds(int(node_options_.submap_publish_period_sec * 1000)),
     std::bind(&Node::PublishSubmapList, this)));
