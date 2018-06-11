@@ -43,6 +43,9 @@
 #include <tf2_eigen/tf2_eigen.h>
 #include "visualization_msgs/msg/marker_array.hpp"
 
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp/timer.hpp>
+
 namespace cartographer_ros {
 
 namespace {
@@ -157,35 +160,50 @@ Cartographer::Cartographer(
   write_state_server_ = create_service<cartographer_ros_msgs::srv::WriteState>(
       kWriteStateServiceName, write_state_callback);
 
-  submap_list_timer_ = this->create_wall_timer(
+  submap_list_timer_ = rclcpp::GenericTimer<rclcpp::VoidCallbackType>::make_shared(
+    this->get_clock(),
     std::chrono::milliseconds(int(node_options_.submap_publish_period_sec * 1000)),
     [this]() {
       PublishSubmapList();
-    });
+    },
+    this->get_node_base_interface()->get_context());
+  this->get_node_timers_interface()->add_timer(submap_list_timer_, nullptr);
 
-  trajectory_states_timer_ = this->create_wall_timer(
+  trajectory_states_timer_ = rclcpp::GenericTimer<rclcpp::VoidCallbackType>::make_shared(
+    this->get_clock(),
     std::chrono::milliseconds(int(node_options_.pose_publish_period_sec * 1000)),
     [this]() {
       PublishTrajectoryStates();
-    });
+    },
+    this->get_node_base_interface()->get_context());
+  this->get_node_timers_interface()->add_timer(trajectory_states_timer_, nullptr);
 
-  trajectory_node_list_timer_ = this->create_wall_timer(
+  trajectory_node_list_timer_ = rclcpp::GenericTimer<rclcpp::VoidCallbackType>::make_shared(
+    this->get_clock(),
     std::chrono::milliseconds(int(node_options_.trajectory_publish_period_sec * 1000)),
     [this]() {
       PublishTrajectoryNodeList();
-    });
+    },
+    this->get_node_base_interface()->get_context());
+  this->get_node_timers_interface()->add_timer(trajectory_node_list_timer_, nullptr);
 
-  landmark_pose_list_timer_ = this->create_wall_timer(
+  landmark_pose_list_timer_ = rclcpp::GenericTimer<rclcpp::VoidCallbackType>::make_shared(
+    this->get_clock(),
     std::chrono::milliseconds(int(node_options_.trajectory_publish_period_sec * 1000)),
     [this]() {
       PublishLandmarkPosesList();
-    });
+    },
+    this->get_node_base_interface()->get_context());
+  this->get_node_timers_interface()->add_timer(landmark_pose_list_timer_, nullptr);
 
-  constrain_list_timer_ = this->create_wall_timer(
+  constrain_list_timer_ = rclcpp::GenericTimer<rclcpp::VoidCallbackType>::make_shared(
+    this->get_clock(),
     std::chrono::milliseconds(int(kConstraintPublishPeriodSec * 1000)),
     [this]() {
       PublishConstraintList();
-    });
+    },
+    this->get_node_base_interface()->get_context());
+  this->get_node_timers_interface()->add_timer(constrain_list_timer_, nullptr);
 }
 
 Cartographer::~Cartographer() { FinishAllTrajectories(); }

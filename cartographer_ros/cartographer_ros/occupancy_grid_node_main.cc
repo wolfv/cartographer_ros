@@ -37,6 +37,7 @@
 
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/timer.hpp>
 
 DEFINE_double(resolution, 0.05,
               "Resolution of a grid cell in the published occupancy grid.");
@@ -61,11 +62,15 @@ class OccupancyGridNode : public rclcpp::Node
     occupancy_grid_publisher_ = this->create_publisher<::nav_msgs::msg::OccupancyGrid>(
         kOccupancyGridTopic, rclcpp::QoS(10).transient_local());
 
-    occupancy_grid_publisher_timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(int(publish_period_sec * 1000)),
-      [this]() {
-        DrawAndPublish();
-      });
+    occupancy_grid_publisher_timer_ =
+      rclcpp::GenericTimer<rclcpp::VoidCallbackType>::make_shared(
+        this->get_clock(),
+        std::chrono::milliseconds(int(publish_period_sec * 1000)),
+        [this]() {
+          DrawAndPublish();
+        },
+        this->get_node_base_interface()->get_context());
+    this->get_node_timers_interface()->add_timer(occupancy_grid_publisher_timer_, nullptr);
 
     auto handleSubmapList =
       [this](const typename cartographer_ros_msgs::msg::SubmapList::SharedPtr msg) -> void
