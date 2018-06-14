@@ -60,7 +60,7 @@ class OccupancyGridNode : public rclcpp::Node
     client_ = this->create_client<cartographer_ros_msgs::srv::SubmapQuery>(kSubmapQueryServiceName);
 
     occupancy_grid_publisher_ = this->create_publisher<::nav_msgs::msg::OccupancyGrid>(
-        kOccupancyGridTopic, rclcpp::QoS(10).transient_local());
+      kOccupancyGridTopic, rclcpp::QoS(kLatestOnlyPublisherQueueSize).transient_local());
 
     occupancy_grid_publisher_timer_ =
       rclcpp::GenericTimer<rclcpp::VoidCallbackType>::make_shared(
@@ -150,7 +150,7 @@ class OccupancyGridNode : public rclcpp::Node
       };
 
     submap_list_subscriber_ = create_subscription<cartographer_ros_msgs::msg::SubmapList>(
-      kSubmapListTopic, rclcpp::QoS(10), handleSubmapList);
+      kSubmapListTopic, rclcpp::QoS(kLatestOnlyPublisherQueueSize), handleSubmapList);
   }
 
   void DrawAndPublish(void)

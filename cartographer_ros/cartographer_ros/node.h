@@ -224,7 +224,6 @@ class Cartographer : public rclcpp::Node
   ::rclcpp::TimerBase::SharedPtr trajectory_node_list_timer_;
   ::rclcpp::TimerBase::SharedPtr landmark_pose_list_timer_;
   ::rclcpp::TimerBase::SharedPtr constrain_list_timer_;
-
 };
 
 }  // namespace cartographer_ros

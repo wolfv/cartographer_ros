@@ -169,14 +169,9 @@ Cartographer::Cartographer(
     this->get_node_base_interface()->get_context());
   this->get_node_timers_interface()->add_timer(submap_list_timer_, nullptr);
 
-  trajectory_states_timer_ = rclcpp::GenericTimer<rclcpp::VoidCallbackType>::make_shared(
-    this->get_clock(),
+  trajectory_states_timer_ = this->create_wall_timer(
     std::chrono::milliseconds(int(node_options_.pose_publish_period_sec * 1000)),
-    [this]() {
-      PublishTrajectoryStates();
-    },
-    this->get_node_base_interface()->get_context());
-  this->get_node_timers_interface()->add_timer(trajectory_states_timer_, nullptr);
+    [this]() { PublishTrajectoryStates(); });
 
   trajectory_node_list_timer_ = rclcpp::GenericTimer<rclcpp::VoidCallbackType>::make_shared(
     this->get_clock(),
@@ -214,7 +209,6 @@ void Cartographer::HandleSubmapQuery(
     const std::shared_ptr<rmw_request_id_t> request_header,
     const std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Request> request,
     std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Response> response) {
-
   (void)request_header;
   carto::common::MutexLocker lock(&mutex_);
   map_builder_bridge_->HandleSubmapQuery(request, response);
