@@ -155,7 +155,7 @@ class Cartographer : public rclcpp::Node
   void PublishSubmapList();
   void AddExtrapolator(int trajectory_id, const TrajectoryOptions& options);
   void AddSensorSamplers(int trajectory_id, const TrajectoryOptions& options);
-  void PublishTrajectoryStates();
+  void PublishLocalTrajectoryData();
   void PublishTrajectoryNodeList();
   void PublishLandmarkPosesList();
   void PublishConstraintList();
@@ -220,7 +220,7 @@ class Cartographer : public rclcpp::Node
   // they do not fire.
 //   std::vector<::rclcpp::TimerBase::SharedPtr> wall_timers_;
   ::rclcpp::TimerBase::SharedPtr submap_list_timer_;
-  ::rclcpp::TimerBase::SharedPtr trajectory_states_timer_;
+  ::rclcpp::TimerBase::SharedPtr local_trajectory_data_timer_;
   ::rclcpp::TimerBase::SharedPtr trajectory_node_list_timer_;
   ::rclcpp::TimerBase::SharedPtr landmark_pose_list_timer_;
   ::rclcpp::TimerBase::SharedPtr constrain_list_timer_;
