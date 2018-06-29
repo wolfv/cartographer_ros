@@ -24,6 +24,7 @@
 
 #include "cartographer/common/mutex.h"
 #include "cartographer/mapping/map_builder_interface.h"
+#include "cartographer/mapping/pose_graph_interface.h"
 #include "cartographer/mapping/proto/trajectory_builder_options.pb.h"
 #include "cartographer/mapping/trajectory_builder_interface.h"
 #include "cartographer_ros/node_options.h"
@@ -79,8 +80,10 @@ class MapBuilderBridge {
       const std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Request> request,
       std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Response> response);
 
-  std::set<int> GetFrozenTrajectoryIds();
   cartographer_ros_msgs::msg::SubmapList GetSubmapList(::rclcpp::Time node_time);
+  std::map<int /* trajectory_id */,
+           ::cartographer::mapping::PoseGraphInterface::TrajectoryState>
+  GetTrajectoryStates();
   std::unordered_map<int, LocalTrajectoryData> GetLocalTrajectoryData()
       EXCLUDES(mutex_);
   visualization_msgs::msg::MarkerArray GetTrajectoryNodeList(::rclcpp::Time node_time);

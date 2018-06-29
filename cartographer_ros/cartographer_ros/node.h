@@ -33,6 +33,7 @@
 #include "cartographer_ros/node_options.h"
 #include "cartographer_ros/trajectory_options.h"
 #include "cartographer_ros_msgs/srv/finish_trajectory.hpp"
+#include "cartographer_ros_msgs/srv/get_trajectory_states.hpp"
 #include "cartographer_ros_msgs/msg/sensor_topics.hpp"
 #include "cartographer_ros_msgs/srv/start_trajectory.hpp"
 #include "cartographer_ros_msgs/msg/status_response.h"
@@ -141,6 +142,11 @@ class Cartographer : public rclcpp::Node
       const std::shared_ptr<rmw_request_id_t> request_header,
       const std::shared_ptr<cartographer_ros_msgs::srv::WriteState::Request> request,
        std::shared_ptr<cartographer_ros_msgs::srv::WriteState::Response> response);
+  bool HandleGetTrajectoryStates(
+      const std::shared_ptr<rmw_request_id_t> request_header,
+      const std::shared_ptr<cartographer_ros_msgs::srv::GetTrajectoryStates::Request> request,
+       std::shared_ptr<cartographer_ros_msgs::srv::GetTrajectoryStates::Response> response);
+
   // Returns the set of SensorIds expected for a trajectory.
   // 'SensorId::id' is the expected ROS topic name.
   std::set<::cartographer::mapping::TrajectoryBuilderInterface::SensorId>
@@ -186,6 +192,7 @@ class Cartographer : public rclcpp::Node
   ::rclcpp::Service<cartographer_ros_msgs::srv::StartTrajectory>::SharedPtr start_trajectory_server_;
   ::rclcpp::Service<cartographer_ros_msgs::srv::FinishTrajectory>::SharedPtr finish_trajectory_server_;
   ::rclcpp::Service<cartographer_ros_msgs::srv::WriteState>::SharedPtr write_state_server_;
+  ::rclcpp::Service<cartographer_ros_msgs::srv::GetTrajectoryStates>::SharedPtr get_trajectory_states_server_;
 
 //   std::vector<::rclcpp::ServiceBase::SharedPtr> service_servers_;
 
@@ -214,7 +221,6 @@ class Cartographer : public rclcpp::Node
   std::unordered_map<int, TrajectorySensorSamplers> sensor_samplers_;
   std::unordered_map<int, std::vector<Subscriber>> subscribers_;
   std::unordered_set<std::string> subscribed_topics_;
-  std::unordered_map<int, bool> is_active_trajectory_ GUARDED_BY(mutex_);
 
   // We have to keep the timer handles of ::rclcpp::TimerBase around, otherwise
   // they do not fire.

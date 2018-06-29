@@ -26,6 +26,7 @@
 #include "cartographer/common/make_unique.h"
 #include "cartographer/common/port.h"
 #include "cartographer/common/time.h"
+#include "cartographer/mapping/pose_graph_interface.h"
 #include "cartographer/mapping/proto/submap_visualization.pb.h"
 #include "cartographer/sensor/point_cloud.h"
 #include "cartographer/transform/rigid_transform.h"
@@ -82,6 +83,8 @@ template <typename MessageType>
 namespace carto = ::cartographer;
 
 using carto::transform::Rigid3d;
+using TrajectoryState =
+    ::cartographer::mapping::PoseGraphInterface::TrajectoryState;
 
 Cartographer::Cartographer(
   const NodeOptions& node_options,
@@ -159,6 +162,17 @@ Cartographer::Cartographer(
 
   write_state_server_ = create_service<cartographer_ros_msgs::srv::WriteState>(
       kWriteStateServiceName, write_state_callback);
+
+  auto get_trajectory_states_callback =
+    [this](const std::shared_ptr<rmw_request_id_t> request_header,
+      const std::shared_ptr<cartographer_ros_msgs::srv::GetTrajectoryStates::Request> request,
+      std::shared_ptr<cartographer_ros_msgs::srv::GetTrajectoryStates::Response> response) -> void
+    {
+      HandleGetTrajectoryStates(request_header, request, response);
+    };
+
+  get_trajectory_states_server_ = create_service<cartographer_ros_msgs::srv::GetTrajectoryStates>(
+      kGetTrajectoryStatesServiceName, get_trajectory_states_callback);
 
   submap_list_timer_ = rclcpp::GenericTimer<rclcpp::VoidCallbackType>::make_shared(
     this->get_clock(),
@@ -408,7 +422,6 @@ int Cartographer::AddTrajectory(const TrajectoryOptions& options,
   AddExtrapolator(trajectory_id, options);
   AddSensorSamplers(trajectory_id, options);
   LaunchSubscribers(options, topics, trajectory_id);
-  is_active_trajectory_[trajectory_id] = true;
   for (const auto& sensor_id : expected_sensor_ids) {
     subscribed_topics_.insert(sensor_id.id);
   }
@@ -515,44 +528,53 @@ bool Cartographer::ValidateTopicNames(
 
 cartographer_ros_msgs::msg::StatusResponse Cartographer::FinishTrajectoryUnderLock(
     const int trajectory_id) {
+  auto trajectory_states = map_builder_bridge_->GetTrajectoryStates();
+
   cartographer_ros_msgs::msg::StatusResponse status_response;
 
   // First, check if we can actually finish the trajectory.
-  if (map_builder_bridge_->GetFrozenTrajectoryIds().count(trajectory_id)) {
+  if (!(trajectory_states.count(trajectory_id))) {
     const std::string error =
-        "Trajectory " + std::to_string(trajectory_id) + " is frozen.";
-    LOG(ERROR) << error;
-    status_response.code = cartographer_ros_msgs::msg::StatusCode::INVALID_ARGUMENT;
-    status_response.message = error;
-    return status_response;
-  }
-  if (is_active_trajectory_.count(trajectory_id) == 0) {
-    const std::string error =
-        "Trajectory " + std::to_string(trajectory_id) + " is not created yet.";
+      "Trajectory " + std::to_string(trajectory_id) + " doesn't exist.";
     LOG(ERROR) << error;
     status_response.code = cartographer_ros_msgs::msg::StatusCode::NOT_FOUND;
     status_response.message = error;
     return status_response;
-  }
-  if (!is_active_trajectory_[trajectory_id]) {
+  } else if (trajectory_states.at(trajectory_id) == TrajectoryState::FROZEN) {
+    const std::string error =
+      "Trajectory " + std::to_string(trajectory_id) + " is frozen.";
+    LOG(ERROR) << error;
+    status_response.code = cartographer_ros_msgs::msg::StatusCode::INVALID_ARGUMENT;
+    status_response.message = error;
+    return status_response;
+  } else if (trajectory_states.at(trajectory_id) == TrajectoryState::FINISHED) {
     const std::string error = "Trajectory " + std::to_string(trajectory_id) +
                               " has already been finished.";
     LOG(ERROR) << error;
     status_response.code =
-        cartographer_ros_msgs::msg::StatusCode::RESOURCE_EXHAUSTED;
+      cartographer_ros_msgs::msg::StatusCode::RESOURCE_EXHAUSTED;
+    status_response.message = error;
+    return status_response;
+  } else if (trajectory_states.at(trajectory_id) == TrajectoryState::DELETED) {
+    const std::string error =
+      "Trajectory " + std::to_string(trajectory_id) + " has been deleted.";
+    LOG(ERROR) << error;
+    status_response.code =
+      cartographer_ros_msgs::msg::StatusCode::RESOURCE_EXHAUSTED;
     status_response.message = error;
     return status_response;
   }
 
   // Shutdown the subscribers of this trajectory.
-  for (auto& entry : subscribers_[trajectory_id]) {
-    subscribed_topics_.erase(entry.topic);
-    LOG(INFO) << "Shutdown the subscriber of [" << entry.topic << "]";
+  if (subscribers_.count(trajectory_id)) {
+    // A valid case with no subscribers is e.g. if we just visualize states.
+    for (auto& entry : subscribers_[trajectory_id]) {
+      subscribed_topics_.erase(entry.topic);
+      LOG(INFO) << "Shutdown the subscriber of [" << entry.topic << "]";
+    }
+    CHECK_EQ(subscribers_.erase(trajectory_id), 1);
   }
-  CHECK_EQ(subscribers_.erase(trajectory_id), 1);
-  CHECK(is_active_trajectory_.at(trajectory_id));
   map_builder_bridge_->FinishTrajectory(trajectory_id);
-  is_active_trajectory_[trajectory_id] = false;
   const std::string message =
       "Finished trajectory " + std::to_string(trajectory_id) + ".";
   status_response.code = cartographer_ros_msgs::msg::StatusCode::OK;
@@ -624,7 +646,6 @@ int Cartographer::AddOfflineTrajectory(
       map_builder_bridge_->AddTrajectory(expected_sensor_ids, options);
   AddExtrapolator(trajectory_id, options);
   AddSensorSamplers(trajectory_id, options);
-  is_active_trajectory_[trajectory_id] = true;
   return trajectory_id;
 }
 
@@ -654,11 +675,44 @@ void Cartographer::HandleWriteState(
   }
 }
 
+bool Cartographer::HandleGetTrajectoryStates(
+    const std::shared_ptr<rmw_request_id_t>,
+    const std::shared_ptr<cartographer_ros_msgs::srv::GetTrajectoryStates::Request>,
+     std::shared_ptr<cartographer_ros_msgs::srv::GetTrajectoryStates::Response> response) {
+  using TrajectoryState =
+      ::cartographer::mapping::PoseGraphInterface::TrajectoryState;
+  carto::common::MutexLocker lock(&mutex_);
+  response->status.code = ::cartographer_ros_msgs::msg::StatusCode::OK;
+  response->trajectory_states.header.stamp = this->now();
+  for (const auto& entry : map_builder_bridge_->GetTrajectoryStates()) {
+    response->trajectory_states.trajectory_id.push_back(entry.first);
+    switch (entry.second) {
+      case TrajectoryState::ACTIVE:
+        response->trajectory_states.trajectory_state.push_back(
+            ::cartographer_ros_msgs::msg::TrajectoryStates::ACTIVE);
+        break;
+      case TrajectoryState::FINISHED:
+        response->trajectory_states.trajectory_state.push_back(
+            ::cartographer_ros_msgs::msg::TrajectoryStates::FINISHED);
+        break;
+      case TrajectoryState::FROZEN:
+        response->trajectory_states.trajectory_state.push_back(
+            ::cartographer_ros_msgs::msg::TrajectoryStates::FROZEN);
+        break;
+      case TrajectoryState::DELETED:
+        response->trajectory_states.trajectory_state.push_back(
+            ::cartographer_ros_msgs::msg::TrajectoryStates::DELETED);
+        break;
+    }
+  }
+  return true;
+}
+
 void Cartographer::FinishAllTrajectories() {
   carto::common::MutexLocker lock(&mutex_);
-  for (auto& entry : is_active_trajectory_) {
-    const int trajectory_id = entry.first;
-    if (entry.second) {
+  for (const auto& entry : map_builder_bridge_->GetTrajectoryStates()) {
+    if (entry.second == TrajectoryState::ACTIVE) {
+      const int trajectory_id = entry.first;
       CHECK_EQ(FinishTrajectoryUnderLock(trajectory_id).code,
                cartographer_ros_msgs::msg::StatusCode::OK);
     }
@@ -673,9 +727,17 @@ bool Cartographer::FinishTrajectory(const int trajectory_id) {
 
 void Cartographer::RunFinalOptimization() {
   {
-    carto::common::MutexLocker lock(&mutex_);
-    for (const auto& entry : is_active_trajectory_) {
-      CHECK(!entry.second);
+    for (const auto& entry : map_builder_bridge_->GetTrajectoryStates()) {
+      const int trajectory_id = entry.first;
+      if (entry.second == TrajectoryState::ACTIVE) {
+        LOG(WARNING)
+            << "Can't run final optimization if there are one or more active "
+               "trajectories. Trying to finish trajectory with ID "
+            << std::to_string(trajectory_id) << " now.";
+        CHECK(FinishTrajectory(trajectory_id))
+            << "Failed to finish trajectory with ID "
+            << std::to_string(trajectory_id) << ".";
+      }
     }
   }
   // Assuming we are not adding new data anymore, the final optimization
