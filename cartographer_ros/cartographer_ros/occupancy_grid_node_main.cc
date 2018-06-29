@@ -42,6 +42,12 @@
 DEFINE_double(resolution, 0.05,
               "Resolution of a grid cell in the published occupancy grid.");
 DEFINE_double(publish_period_sec, 1.0, "OccupancyGrid publishing period.");
+DEFINE_bool(include_frozen_submaps, true,
+            "Include frozen submaps in the occupancy grid.");
+DEFINE_bool(include_unfrozen_submaps, true,
+            "Include unfrozen submaps in the occupancy grid.");
+DEFINE_string(occupancy_grid_topic, cartographer_ros::kOccupancyGridTopic,
+              "Name of the topic on which the occupancy grid is published.");
 
 namespace cartographer_ros {
 namespace {
@@ -92,6 +98,10 @@ class OccupancyGridNode : public rclcpp::Node
           for (const auto& submap_msg : msg->submap) {
             const SubmapId id{submap_msg.trajectory_id, submap_msg.submap_index};
             submap_ids_to_delete.erase(id);
+            if ((submap_msg.is_frozen && !FLAGS_include_frozen_submaps) ||
+                (!submap_msg.is_frozen && !FLAGS_include_unfrozen_submaps)) {
+              continue;
+            }
             SubmapSlice& submap_slice = submap_slices_[id];
             submap_slice.pose = ToRigid3d(submap_msg.pose);
             submap_slice.metadata_version = submap_msg.submap_version;
@@ -196,6 +206,9 @@ int main(int argc, char** argv) {
   google::AllowCommandLineReparsing();
   google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, false);
+
+  CHECK(FLAGS_include_frozen_submaps || FLAGS_include_unfrozen_submaps)
+      << "Ignoring both frozen and unfrozen submaps makes no sense.";
 
   auto node = std::make_shared<cartographer_ros::OccupancyGridNode>(FLAGS_resolution, FLAGS_publish_period_sec);
 
