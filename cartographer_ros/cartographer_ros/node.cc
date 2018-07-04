@@ -28,9 +28,11 @@
 #include "cartographer/common/time.h"
 #include "cartographer/mapping/pose_graph_interface.h"
 #include "cartographer/mapping/proto/submap_visualization.pb.h"
+#include "cartographer/metrics/register.h"
 #include "cartographer/sensor/point_cloud.h"
 #include "cartographer/transform/rigid_transform.h"
 #include "cartographer/transform/transform.h"
+#include "cartographer_ros/metrics/family_factory.h"
 #include "cartographer_ros/msg_conversion.h"
 #include "cartographer_ros/sensor_bridge.h"
 #include "cartographer_ros/tf_bridge.h"
@@ -88,7 +90,8 @@ using TrajectoryState =
 
 Cartographer::Cartographer(
   const NodeOptions& node_options,
-  std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder)
+  std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder,
+  const bool collect_metrics)
   : Node("cartographer_node"),
     node_options_(node_options)
 {
@@ -102,6 +105,10 @@ Cartographer::Cartographer(
   map_builder_bridge_.reset(new cartographer_ros::MapBuilderBridge(node_options_, std::move(map_builder), tf_buffer_.get()));
 
   carto::common::MutexLocker lock(&mutex_);
+  if (collect_metrics) {
+    metrics_registry_ = carto::common::make_unique<metrics::FamilyFactory>();
+    carto::metrics::RegisterAllMetrics(metrics_registry_.get());
+  }
 
   submap_list_publisher_ =
       this->create_publisher<::cartographer_ros_msgs::msg::SubmapList>(
@@ -173,6 +180,17 @@ Cartographer::Cartographer(
 
   get_trajectory_states_server_ = create_service<cartographer_ros_msgs::srv::GetTrajectoryStates>(
       kGetTrajectoryStatesServiceName, get_trajectory_states_callback);
+
+  auto read_metrics_callback =
+    [this](const std::shared_ptr<rmw_request_id_t> request_header,
+           const std::shared_ptr<cartographer_ros_msgs::srv::ReadMetrics::Request> request,
+           std::shared_ptr<cartographer_ros_msgs::srv::ReadMetrics::Response> response) -> void
+    {
+      HandleReadMetrics(request_header, request, response);
+    };
+
+  read_metrics_server_ = create_service<cartographer_ros_msgs::srv::ReadMetrics>(
+      kReadMetricsServiceName, read_metrics_callback);
 
   submap_list_timer_ = rclcpp::GenericTimer<rclcpp::VoidCallbackType>::make_shared(
     this->get_clock(),
@@ -705,6 +723,23 @@ bool Cartographer::HandleGetTrajectoryStates(
         break;
     }
   }
+  return true;
+}
+
+bool Cartographer::HandleReadMetrics(
+    const std::shared_ptr<rmw_request_id_t>,
+    const std::shared_ptr<::cartographer_ros_msgs::srv::ReadMetrics::Request>,
+     std::shared_ptr<::cartographer_ros_msgs::srv::ReadMetrics::Response> response) {
+  carto::common::MutexLocker lock(&mutex_);
+  response->timestamp = this->now();
+  if (!metrics_registry_) {
+    response->status.code = cartographer_ros_msgs::msg::StatusCode::UNAVAILABLE;
+    response->status.message = "Collection of runtime metrics is not activated.";
+    return true;
+  }
+  metrics_registry_->ReadMetrics(response.get());
+  response->status.code = cartographer_ros_msgs::msg::StatusCode::OK;
+  response->status.message = "Successfully read metrics.";
   return true;
 }
 

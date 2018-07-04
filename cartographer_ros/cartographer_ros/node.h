@@ -29,11 +29,13 @@
 #include "cartographer/mapping/map_builder_interface.h"
 #include "cartographer/mapping/pose_extrapolator.h"
 #include "cartographer_ros/map_builder_bridge.h"
+#include "cartographer_ros/metrics/family_factory.h"
 #include "cartographer_ros/node_constants.h"
 #include "cartographer_ros/node_options.h"
 #include "cartographer_ros/trajectory_options.h"
 #include "cartographer_ros_msgs/srv/finish_trajectory.hpp"
 #include "cartographer_ros_msgs/srv/get_trajectory_states.hpp"
+#include "cartographer_ros_msgs/srv/read_metrics.hpp"
 #include "cartographer_ros_msgs/msg/sensor_topics.hpp"
 #include "cartographer_ros_msgs/srv/start_trajectory.hpp"
 #include "cartographer_ros_msgs/msg/status_response.h"
@@ -59,7 +61,8 @@ class Cartographer : public rclcpp::Node
 {
  public:
   Cartographer(const NodeOptions& node_options,
-       std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder);
+               std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder,
+               const bool collect_metrics);
   ~Cartographer();
 
   // Finishes all yet active trajectories.
@@ -146,6 +149,10 @@ class Cartographer : public rclcpp::Node
       const std::shared_ptr<rmw_request_id_t> request_header,
       const std::shared_ptr<cartographer_ros_msgs::srv::GetTrajectoryStates::Request> request,
        std::shared_ptr<cartographer_ros_msgs::srv::GetTrajectoryStates::Response> response);
+  bool HandleReadMetrics(
+      const std::shared_ptr<rmw_request_id_t> request_header,
+      const std::shared_ptr<cartographer_ros_msgs::srv::ReadMetrics::Request> request,
+       std::shared_ptr<cartographer_ros_msgs::srv::ReadMetrics::Response> response);
 
   // Returns the set of SensorIds expected for a trajectory.
   // 'SensorId::id' is the expected ROS topic name.
@@ -193,6 +200,7 @@ class Cartographer : public rclcpp::Node
   ::rclcpp::Service<cartographer_ros_msgs::srv::FinishTrajectory>::SharedPtr finish_trajectory_server_;
   ::rclcpp::Service<cartographer_ros_msgs::srv::WriteState>::SharedPtr write_state_server_;
   ::rclcpp::Service<cartographer_ros_msgs::srv::GetTrajectoryStates>::SharedPtr get_trajectory_states_server_;
+  ::rclcpp::Service<cartographer_ros_msgs::srv::ReadMetrics>::SharedPtr read_metrics_server_;
 
 //   std::vector<::rclcpp::ServiceBase::SharedPtr> service_servers_;
 
@@ -230,6 +238,8 @@ class Cartographer : public rclcpp::Node
   ::rclcpp::TimerBase::SharedPtr trajectory_node_list_timer_;
   ::rclcpp::TimerBase::SharedPtr landmark_pose_list_timer_;
   ::rclcpp::TimerBase::SharedPtr constrain_list_timer_;
+
+  std::unique_ptr<cartographer_ros::metrics::FamilyFactory> metrics_registry_;
 };
 
 }  // namespace cartographer_ros
