@@ -19,7 +19,6 @@
 #include "cartographer/common/make_unique.h"
 #include "cartographer_ros/node_constants.h"
 #include "glog/logging.h"
-#include "tf2_msgs/TFMessage.h"
 
 namespace cartographer_ros {
 

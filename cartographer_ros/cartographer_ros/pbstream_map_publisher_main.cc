@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// Publishes a frozen nav_msgs/OccupancyGrid map from serialized submaps.
+// Publishes a frozen ros_msgs::nav_msgs/OccupancyGrid map from serialized submaps.
 
 #include <map>
 #include <string>
@@ -36,7 +36,6 @@
 #include "cartographer_ros/submap.h"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
-#include "nav_msgs/OccupancyGrid.h"
 #include "ros/ros.h"
 
 DEFINE_string(pbstream_filename, "",
@@ -74,13 +73,13 @@ void Run(const std::string& pbstream_filename, const std::string& map_topic,
   CHECK(reader.eof());
 
   ::ros::NodeHandle node_handle("");
-  ::ros::Publisher pub = node_handle.advertise<nav_msgs::OccupancyGrid>(
+  ::ros::Publisher pub = node_handle.advertise<ros_msgs::nav_msgs::OccupancyGrid>(
       map_topic, kLatestOnlyPublisherQueueSize, true /*latched */);
 
   LOG(INFO) << "Generating combined map image from submap slices.";
   const auto painted_slices =
       ::cartographer::io::PaintSubmapSlices(submap_slices, resolution);
-  std::unique_ptr<nav_msgs::OccupancyGrid> msg_ptr = CreateOccupancyGridMsg(
+  std::unique_ptr<ros_msgs::nav_msgs::OccupancyGrid> msg_ptr = CreateOccupancyGridMsg(
       painted_slices, resolution, FLAGS_map_frame_id, ros::Time::now());
 
   LOG(INFO) << "Publishing occupancy grid topic " << map_topic

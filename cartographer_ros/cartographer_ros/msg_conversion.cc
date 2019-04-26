@@ -25,24 +25,15 @@
 #include "cartographer/transform/proto/transform.pb.h"
 #include "cartographer/transform/transform.h"
 #include "cartographer_ros/time_conversion.h"
-#include "geometry_msgs/Pose.h"
-#include "geometry_msgs/Quaternion.h"
-#include "geometry_msgs/Transform.h"
-#include "geometry_msgs/TransformStamped.h"
-#include "geometry_msgs/Vector3.h"
+#include "cartographer_ros/ros_msgs.h"
 #include "glog/logging.h"
-#include "nav_msgs/OccupancyGrid.h"
 #include "ros/ros.h"
 #include "ros/serialization.h"
-#include "sensor_msgs/Imu.h"
-#include "sensor_msgs/LaserScan.h"
-#include "sensor_msgs/MultiEchoLaserScan.h"
-#include "sensor_msgs/PointCloud2.h"
 
 namespace cartographer_ros {
 namespace {
 
-// The ros::sensor_msgs::PointCloud2 binary data contains 4 floats for each
+// The ros::ros_msgs::sensor_msgs::PointCloud2 binary data contains 4 floats for each
 // point. The last one must be this value or RViz is not showing the point cloud
 // properly.
 constexpr float kPointCloudComponentFourMagic = 1.;
@@ -51,13 +42,13 @@ using ::cartographer::sensor::LandmarkData;
 using ::cartographer::sensor::LandmarkObservation;
 using ::cartographer::sensor::PointCloudWithIntensities;
 using ::cartographer::transform::Rigid3d;
-using ::cartographer_ros_msgs::LandmarkEntry;
-using ::cartographer_ros_msgs::LandmarkList;
+using ros_msgs::cartographer_ros_msgs::LandmarkEntry;
+using ros_msgs::cartographer_ros_msgs::LandmarkList;
 
-sensor_msgs::PointCloud2 PreparePointCloud2Message(const int64_t timestamp,
+ros_msgs::sensor_msgs::PointCloud2 PreparePointCloud2Message(const int64_t timestamp,
                                                    const std::string& frame_id,
                                                    const int num_points) {
-  sensor_msgs::PointCloud2 msg;
+  ros_msgs::sensor_msgs::PointCloud2 msg;
   msg.header.stamp = ToRos(::cartographer::common::FromUniversal(timestamp));
   msg.header.frame_id = frame_id;
   msg.height = 1;
@@ -65,15 +56,15 @@ sensor_msgs::PointCloud2 PreparePointCloud2Message(const int64_t timestamp,
   msg.fields.resize(3);
   msg.fields[0].name = "x";
   msg.fields[0].offset = 0;
-  msg.fields[0].datatype = sensor_msgs::PointField::FLOAT32;
+  msg.fields[0].datatype = ros_msgs::sensor_msgs::PointField::FLOAT32;
   msg.fields[0].count = 1;
   msg.fields[1].name = "y";
   msg.fields[1].offset = 4;
-  msg.fields[1].datatype = sensor_msgs::PointField::FLOAT32;
+  msg.fields[1].datatype = ros_msgs::sensor_msgs::PointField::FLOAT32;
   msg.fields[1].count = 1;
   msg.fields[2].name = "z";
   msg.fields[2].offset = 8;
-  msg.fields[2].datatype = sensor_msgs::PointField::FLOAT32;
+  msg.fields[2].datatype = ros_msgs::sensor_msgs::PointField::FLOAT32;
   msg.fields[2].count = 1;
   msg.is_bigendian = false;
   msg.point_step = 16;
@@ -83,21 +74,21 @@ sensor_msgs::PointCloud2 PreparePointCloud2Message(const int64_t timestamp,
   return msg;
 }
 
-// For sensor_msgs::LaserScan.
+// For ros_msgs::sensor_msgs::LaserScan.
 bool HasEcho(float) { return true; }
 
 float GetFirstEcho(float range) { return range; }
 
-// For sensor_msgs::MultiEchoLaserScan.
-bool HasEcho(const sensor_msgs::LaserEcho& echo) {
+// For ros_msgs::sensor_msgs::MultiEchoLaserScan.
+bool HasEcho(const ros_msgs::sensor_msgs::LaserEcho& echo) {
   return !echo.echoes.empty();
 }
 
-float GetFirstEcho(const sensor_msgs::LaserEcho& echo) {
+float GetFirstEcho(const ros_msgs::sensor_msgs::LaserEcho& echo) {
   return echo.echoes[0];
 }
 
-// For sensor_msgs::LaserScan and sensor_msgs::MultiEchoLaserScan.
+// For ros_msgs::sensor_msgs::LaserScan and ros_msgs::sensor_msgs::MultiEchoLaserScan.
 template <typename LaserMessageType>
 std::tuple<PointCloudWithIntensities, ::cartographer::common::Time>
 LaserScanToPointCloudWithIntensities(const LaserMessageType& msg) {
@@ -143,7 +134,7 @@ LaserScanToPointCloudWithIntensities(const LaserMessageType& msg) {
   return std::make_tuple(point_cloud, timestamp);
 }
 
-bool PointCloud2HasField(const sensor_msgs::PointCloud2& pc2,
+bool PointCloud2HasField(const ros_msgs::sensor_msgs::PointCloud2& pc2,
                          const std::string& field_name) {
   for (const auto& field : pc2.fields) {
     if (field.name == field_name) {
@@ -155,7 +146,7 @@ bool PointCloud2HasField(const sensor_msgs::PointCloud2& pc2,
 
 }  // namespace
 
-sensor_msgs::PointCloud2 ToPointCloud2Message(
+ros_msgs::sensor_msgs::PointCloud2 ToPointCloud2Message(
     const int64_t timestamp, const std::string& frame_id,
     const ::cartographer::sensor::TimedPointCloud& point_cloud) {
   auto msg = PreparePointCloud2Message(timestamp, frame_id, point_cloud.size());
@@ -171,19 +162,19 @@ sensor_msgs::PointCloud2 ToPointCloud2Message(
 
 std::tuple<::cartographer::sensor::PointCloudWithIntensities,
            ::cartographer::common::Time>
-ToPointCloudWithIntensities(const sensor_msgs::LaserScan& msg) {
+ToPointCloudWithIntensities(const ros_msgs::sensor_msgs::LaserScan& msg) {
   return LaserScanToPointCloudWithIntensities(msg);
 }
 
 std::tuple<::cartographer::sensor::PointCloudWithIntensities,
            ::cartographer::common::Time>
-ToPointCloudWithIntensities(const sensor_msgs::MultiEchoLaserScan& msg) {
+ToPointCloudWithIntensities(const ros_msgs::sensor_msgs::MultiEchoLaserScan& msg) {
   return LaserScanToPointCloudWithIntensities(msg);
 }
 
 std::tuple<::cartographer::sensor::PointCloudWithIntensities,
            ::cartographer::common::Time>
-ToPointCloudWithIntensities(const sensor_msgs::PointCloud2& message) {
+ToPointCloudWithIntensities(const ros_msgs::sensor_msgs::PointCloud2& message) {
   PointCloudWithIntensities point_cloud;
   // We check for intensity field here to avoid run-time warnings if we pass in
   // a PointCloud2 without intensity.
@@ -219,27 +210,27 @@ LandmarkData ToLandmarkData(const LandmarkList& landmark_list) {
   return landmark_data;
 }
 
-Rigid3d ToRigid3d(const geometry_msgs::TransformStamped& transform) {
+Rigid3d ToRigid3d(const ros_msgs::geometry_msgs::TransformStamped& transform) {
   return Rigid3d(ToEigen(transform.transform.translation),
                  ToEigen(transform.transform.rotation));
 }
 
-Rigid3d ToRigid3d(const geometry_msgs::Pose& pose) {
+Rigid3d ToRigid3d(const ros_msgs::geometry_msgs::Pose& pose) {
   return Rigid3d({pose.position.x, pose.position.y, pose.position.z},
                  ToEigen(pose.orientation));
 }
 
-Eigen::Vector3d ToEigen(const geometry_msgs::Vector3& vector3) {
+Eigen::Vector3d ToEigen(const ros_msgs::geometry_msgs::Vector3& vector3) {
   return Eigen::Vector3d(vector3.x, vector3.y, vector3.z);
 }
 
-Eigen::Quaterniond ToEigen(const geometry_msgs::Quaternion& quaternion) {
+Eigen::Quaterniond ToEigen(const ros_msgs::geometry_msgs::Quaternion& quaternion) {
   return Eigen::Quaterniond(quaternion.w, quaternion.x, quaternion.y,
                             quaternion.z);
 }
 
-geometry_msgs::Transform ToGeometryMsgTransform(const Rigid3d& rigid3d) {
-  geometry_msgs::Transform transform;
+ros_msgs::geometry_msgs::Transform ToGeometryMsgTransform(const Rigid3d& rigid3d) {
+  ros_msgs::geometry_msgs::Transform transform;
   transform.translation.x = rigid3d.translation().x();
   transform.translation.y = rigid3d.translation().y();
   transform.translation.z = rigid3d.translation().z();
@@ -250,8 +241,8 @@ geometry_msgs::Transform ToGeometryMsgTransform(const Rigid3d& rigid3d) {
   return transform;
 }
 
-geometry_msgs::Pose ToGeometryMsgPose(const Rigid3d& rigid3d) {
-  geometry_msgs::Pose pose;
+ros_msgs::geometry_msgs::Pose ToGeometryMsgPose(const Rigid3d& rigid3d) {
+  ros_msgs::geometry_msgs::Pose pose;
   pose.position = ToGeometryMsgPoint(rigid3d.translation());
   pose.orientation.w = rigid3d.rotation().w();
   pose.orientation.x = rigid3d.rotation().x();
@@ -260,8 +251,8 @@ geometry_msgs::Pose ToGeometryMsgPose(const Rigid3d& rigid3d) {
   return pose;
 }
 
-geometry_msgs::Point ToGeometryMsgPoint(const Eigen::Vector3d& vector3d) {
-  geometry_msgs::Point point;
+ros_msgs::geometry_msgs::Point ToGeometryMsgPoint(const Eigen::Vector3d& vector3d) {
+  ros_msgs::geometry_msgs::Point point;
   point.x = vector3d.x();
   point.y = vector3d.y();
   point.z = vector3d.z();
@@ -300,12 +291,12 @@ cartographer::transform::Rigid3d ComputeLocalFrameFromLatLong(
   return cartographer::transform::Rigid3d(rotation * -translation, rotation);
 }
 
-std::unique_ptr<nav_msgs::OccupancyGrid> CreateOccupancyGridMsg(
+std::unique_ptr<ros_msgs::nav_msgs::OccupancyGrid> CreateOccupancyGridMsg(
     const cartographer::io::PaintSubmapSlicesResult& painted_slices,
     const double resolution, const std::string& frame_id,
     const ros::Time& time) {
   auto occupancy_grid =
-      ::cartographer::common::make_unique<nav_msgs::OccupancyGrid>();
+      ::cartographer::common::make_unique<ros_msgs::nav_msgs::OccupancyGrid>();
 
   const int width = cairo_image_surface_get_width(painted_slices.surface.get());
   const int height =

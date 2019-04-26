@@ -35,6 +35,7 @@
 #include "cartographer/transform/transform_interpolation_buffer.h"
 #include "cartographer_ros/msg_conversion.h"
 #include "cartographer_ros/ros_map_writing_points_processor.h"
+#include "cartographer_ros/ros_msgs.h"
 #include "cartographer_ros/split_string.h"
 #include "cartographer_ros/time_conversion.h"
 #include "cartographer_ros/urdf_reader.h"
@@ -45,7 +46,6 @@
 #include "rosbag/bag.h"
 #include "rosbag/view.h"
 #include "tf2_eigen/tf2_eigen.h"
-#include "tf2_msgs/TFMessage.h"
 #include "tf2_ros/buffer.h"
 #include "urdf/model.h"
 
@@ -212,8 +212,8 @@ void AssetsWriter::Run(const std::string& configuration_directory,
       // always interpolate.
       const ::ros::Duration kDelay(1.);
       for (const rosbag::MessageInstance& message : view) {
-        if (use_bag_transforms && message.isType<tf2_msgs::TFMessage>()) {
-          auto tf_message = message.instantiate<tf2_msgs::TFMessage>();
+        if (use_bag_transforms && message.isType<ros_msgs::tf2_msgs::TFMessage>()) {
+          auto tf_message = message.instantiate<ros_msgs::tf2_msgs::TFMessage>();
           for (const auto& transform : tf_message->transforms) {
             try {
               tf_buffer.setTransform(transform, "unused_authority",
@@ -230,18 +230,18 @@ void AssetsWriter::Run(const std::string& configuration_directory,
               delayed_messages.front();
 
           std::unique_ptr<carto::io::PointsBatch> points_batch;
-          if (delayed_message.isType<sensor_msgs::PointCloud2>()) {
+          if (delayed_message.isType<ros_msgs::sensor_msgs::PointCloud2>()) {
             points_batch = HandleMessage(
-                *delayed_message.instantiate<sensor_msgs::PointCloud2>(),
+                *delayed_message.instantiate<ros_msgs::sensor_msgs::PointCloud2>(),
                 tracking_frame, tf_buffer, transform_interpolation_buffer);
           } else if (delayed_message
-                         .isType<sensor_msgs::MultiEchoLaserScan>()) {
+                         .isType<ros_msgs::sensor_msgs::MultiEchoLaserScan>()) {
             points_batch = HandleMessage(
-                *delayed_message.instantiate<sensor_msgs::MultiEchoLaserScan>(),
+                *delayed_message.instantiate<ros_msgs::sensor_msgs::MultiEchoLaserScan>(),
                 tracking_frame, tf_buffer, transform_interpolation_buffer);
-          } else if (delayed_message.isType<sensor_msgs::LaserScan>()) {
+          } else if (delayed_message.isType<ros_msgs::sensor_msgs::LaserScan>()) {
             points_batch = HandleMessage(
-                *delayed_message.instantiate<sensor_msgs::LaserScan>(),
+                *delayed_message.instantiate<ros_msgs::sensor_msgs::LaserScan>(),
                 tracking_frame, tf_buffer, transform_interpolation_buffer);
           }
           if (points_batch != nullptr) {

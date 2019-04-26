@@ -31,10 +31,7 @@
 #include "cartographer_ros/node_constants.h"
 #include "cartographer_ros/ros_log_sink.h"
 #include "cartographer_ros/submap.h"
-#include "cartographer_ros_msgs/SubmapList.h"
-#include "cartographer_ros_msgs/SubmapQuery.h"
 #include "gflags/gflags.h"
-#include "nav_msgs/OccupancyGrid.h"
 #include "ros/ros.h"
 
 DEFINE_double(resolution, 0.05,
@@ -57,7 +54,7 @@ class Node {
   Node& operator=(const Node&) = delete;
 
  private:
-  void HandleSubmapList(const cartographer_ros_msgs::SubmapList::ConstPtr& msg);
+  void HandleSubmapList(const ros_msgs::cartographer_ros_msgs::SubmapList::ConstPtr& msg);
   void DrawAndPublish(const ::ros::WallTimerEvent& timer_event);
   void PublishOccupancyGrid(const std::string& frame_id, const ros::Time& time,
                             const Eigen::Array2f& origin,
@@ -78,17 +75,17 @@ class Node {
 
 Node::Node(const double resolution, const double publish_period_sec)
     : resolution_(resolution),
-      client_(node_handle_.serviceClient<::cartographer_ros_msgs::SubmapQuery>(
+      client_(node_handle_.serviceClient<ros_msgs::cartographer_ros_msgs::SubmapQuery>(
           kSubmapQueryServiceName)),
       submap_list_subscriber_(node_handle_.subscribe(
           kSubmapListTopic, kLatestOnlyPublisherQueueSize,
           boost::function<void(
-              const cartographer_ros_msgs::SubmapList::ConstPtr&)>(
-              [this](const cartographer_ros_msgs::SubmapList::ConstPtr& msg) {
+              const ros_msgs::cartographer_ros_msgs::SubmapList::ConstPtr&)>(
+              [this](const ros_msgs::cartographer_ros_msgs::SubmapList::ConstPtr& msg) {
                 HandleSubmapList(msg);
               }))),
       occupancy_grid_publisher_(
-          node_handle_.advertise<::nav_msgs::OccupancyGrid>(
+          node_handle_.advertise<ros_msgs::nav_msgs::OccupancyGrid>(
               kOccupancyGridTopic, kLatestOnlyPublisherQueueSize,
               true /* latched */)),
       occupancy_grid_publisher_timer_(
@@ -96,7 +93,7 @@ Node::Node(const double resolution, const double publish_period_sec)
                                        &Node::DrawAndPublish, this)) {}
 
 void Node::HandleSubmapList(
-    const cartographer_ros_msgs::SubmapList::ConstPtr& msg) {
+    const ros_msgs::cartographer_ros_msgs::SubmapList::ConstPtr& msg) {
   ::cartographer::common::MutexLocker locker(&mutex_);
 
   // We do not do any work if nobody listens.
@@ -160,7 +157,7 @@ void Node::DrawAndPublish(const ::ros::WallTimerEvent& unused_timer_event) {
 
   ::cartographer::common::MutexLocker locker(&mutex_);
   auto painted_slices = PaintSubmapSlices(submap_slices_, resolution_);
-  std::unique_ptr<nav_msgs::OccupancyGrid> msg_ptr = CreateOccupancyGridMsg(
+  std::unique_ptr<ros_msgs::nav_msgs::OccupancyGrid> msg_ptr = CreateOccupancyGridMsg(
       painted_slices, resolution_, last_frame_id_, last_timestamp_);
   occupancy_grid_publisher_.publish(*msg_ptr);
 }

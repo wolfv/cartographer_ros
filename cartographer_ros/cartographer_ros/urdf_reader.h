@@ -20,11 +20,12 @@
 #include <vector>
 
 #include "cartographer/common/port.h"
+#include "cartographer_ros/ros_msgs.h"
 #include "tf2_ros/buffer.h"
 
 namespace cartographer_ros {
 
-std::vector<geometry_msgs::TransformStamped> ReadStaticTransformsFromUrdf(
+std::vector<ros_msgs::geometry_msgs::TransformStamped> ReadStaticTransformsFromUrdf(
     const std::string& urdf_filename, tf2_ros::Buffer* tf_buffer);
 
 }  // namespace cartographer_ros

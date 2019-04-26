@@ -20,19 +20,17 @@
 #include "cartographer/common/port.h"
 #include "cartographer/transform/transform.h"
 #include "cartographer_ros/msg_conversion.h"
-#include "cartographer_ros_msgs/StatusCode.h"
-#include "cartographer_ros_msgs/SubmapQuery.h"
 
 namespace cartographer_ros {
 
 std::unique_ptr<::cartographer::io::SubmapTextures> FetchSubmapTextures(
     const ::cartographer::mapping::SubmapId& submap_id,
     ros::ServiceClient* client) {
-  ::cartographer_ros_msgs::SubmapQuery srv;
+  ros_msgs::cartographer_ros_msgs::SubmapQuery srv;
   srv.request.trajectory_id = submap_id.trajectory_id;
   srv.request.submap_index = submap_id.submap_index;
   if (!client->call(srv) ||
-      srv.response.status.code != ::cartographer_ros_msgs::StatusCode::OK) {
+      srv.response.status.code != ros_msgs::cartographer_ros_msgs::StatusCode::OK) {
     return nullptr;
   }
   if (srv.response.textures.empty()) {

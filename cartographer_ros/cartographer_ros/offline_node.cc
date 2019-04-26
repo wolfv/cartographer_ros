@@ -118,7 +118,7 @@ void RunOfflineNode(const MapBuilderFactory& map_builder_factory) {
 
   tf2_ros::Buffer tf_buffer;
 
-  std::vector<geometry_msgs::TransformStamped> urdf_transforms;
+  std::vector<ros_msgs::geometry_msgs::TransformStamped> urdf_transforms;
   for (const std::string& urdf_filename :
        cartographer_ros::SplitString(FLAGS_urdf_filenames, ',')) {
     const auto current_urdf_transforms =
@@ -136,7 +136,7 @@ void RunOfflineNode(const MapBuilderFactory& map_builder_factory) {
   }
 
   ::ros::Publisher tf_publisher =
-      node.node_handle()->advertise<tf2_msgs::TFMessage>(
+      node.node_handle()->advertise<ros_msgs::tf2_msgs::TFMessage>(
           kTfTopic, kLatestOnlyPublisherQueueSize);
 
   ::tf2_ros::StaticTransformBroadcaster static_tf_broadcaster;
@@ -207,9 +207,9 @@ void RunOfflineNode(const MapBuilderFactory& map_builder_factory) {
         // we will have already inserted further 'kDelay' seconds worth of
         // transforms into 'tf_buffer' via this lambda.
         [&tf_publisher, &tf_buffer](const rosbag::MessageInstance& msg) {
-          if (msg.isType<tf2_msgs::TFMessage>()) {
+          if (msg.isType<ros_msgs::tf2_msgs::TFMessage>()) {
             if (FLAGS_use_bag_transforms) {
-              const auto tf_message = msg.instantiate<tf2_msgs::TFMessage>();
+              const auto tf_message = msg.instantiate<ros_msgs::tf2_msgs::TFMessage>();
               tf_publisher.publish(tf_message);
 
               for (const auto& transform : tf_message->transforms) {
@@ -279,36 +279,36 @@ void RunOfflineNode(const MapBuilderFactory& map_builder_factory) {
     auto it = bag_topic_to_sensor_id.find(bag_topic);
     if (it != bag_topic_to_sensor_id.end()) {
       const std::string& sensor_id = it->second.id;
-      if (msg.isType<sensor_msgs::LaserScan>()) {
+      if (msg.isType<ros_msgs::sensor_msgs::LaserScan>()) {
         node.HandleLaserScanMessage(trajectory_id, sensor_id,
-                                    msg.instantiate<sensor_msgs::LaserScan>());
+                                    msg.instantiate<ros_msgs::sensor_msgs::LaserScan>());
       }
-      if (msg.isType<sensor_msgs::MultiEchoLaserScan>()) {
+      if (msg.isType<ros_msgs::sensor_msgs::MultiEchoLaserScan>()) {
         node.HandleMultiEchoLaserScanMessage(
             trajectory_id, sensor_id,
-            msg.instantiate<sensor_msgs::MultiEchoLaserScan>());
+            msg.instantiate<ros_msgs::sensor_msgs::MultiEchoLaserScan>());
       }
-      if (msg.isType<sensor_msgs::PointCloud2>()) {
+      if (msg.isType<ros_msgs::sensor_msgs::PointCloud2>()) {
         node.HandlePointCloud2Message(
             trajectory_id, sensor_id,
-            msg.instantiate<sensor_msgs::PointCloud2>());
+            msg.instantiate<ros_msgs::sensor_msgs::PointCloud2>());
       }
-      if (msg.isType<sensor_msgs::Imu>()) {
+      if (msg.isType<ros_msgs::sensor_msgs::Imu>()) {
         node.HandleImuMessage(trajectory_id, sensor_id,
-                              msg.instantiate<sensor_msgs::Imu>());
+                              msg.instantiate<ros_msgs::sensor_msgs::Imu>());
       }
-      if (msg.isType<nav_msgs::Odometry>()) {
+      if (msg.isType<ros_msgs::nav_msgs::Odometry>()) {
         node.HandleOdometryMessage(trajectory_id, sensor_id,
-                                   msg.instantiate<nav_msgs::Odometry>());
+                                   msg.instantiate<ros_msgs::nav_msgs::Odometry>());
       }
-      if (msg.isType<sensor_msgs::NavSatFix>()) {
+      if (msg.isType<ros_msgs::sensor_msgs::NavSatFix>()) {
         node.HandleNavSatFixMessage(trajectory_id, sensor_id,
-                                    msg.instantiate<sensor_msgs::NavSatFix>());
+                                    msg.instantiate<ros_msgs::sensor_msgs::NavSatFix>());
       }
-      if (msg.isType<cartographer_ros_msgs::LandmarkList>()) {
+      if (msg.isType<ros_msgs::cartographer_ros_msgs::LandmarkList>()) {
         node.HandleLandmarkMessage(
             trajectory_id, sensor_id,
-            msg.instantiate<cartographer_ros_msgs::LandmarkList>());
+            msg.instantiate<ros_msgs::cartographer_ros_msgs::LandmarkList>());
       }
     }
     clock.clock = msg.getTime();

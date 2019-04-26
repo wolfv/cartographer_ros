@@ -25,17 +25,8 @@
 #include "cartographer/sensor/odometry_data.h"
 #include "cartographer/transform/rigid_transform.h"
 #include "cartographer/transform/transform.h"
+#include "cartographer_ros/ros_msgs.h"
 #include "cartographer_ros/tf_bridge.h"
-#include "cartographer_ros_msgs/LandmarkList.h"
-#include "geometry_msgs/Transform.h"
-#include "geometry_msgs/TransformStamped.h"
-#include "nav_msgs/OccupancyGrid.h"
-#include "nav_msgs/Odometry.h"
-#include "sensor_msgs/Imu.h"
-#include "sensor_msgs/LaserScan.h"
-#include "sensor_msgs/MultiEchoLaserScan.h"
-#include "sensor_msgs/NavSatFix.h"
-#include "sensor_msgs/PointCloud2.h"
 
 namespace cartographer_ros {
 
@@ -51,26 +42,26 @@ class SensorBridge {
   SensorBridge& operator=(const SensorBridge&) = delete;
 
   std::unique_ptr<::cartographer::sensor::OdometryData> ToOdometryData(
-      const nav_msgs::Odometry::ConstPtr& msg);
+      const ros_msgs::nav_msgs::Odometry::ConstPtr& msg);
   void HandleOdometryMessage(const std::string& sensor_id,
-                             const nav_msgs::Odometry::ConstPtr& msg);
+                             const ros_msgs::nav_msgs::Odometry::ConstPtr& msg);
   void HandleNavSatFixMessage(const std::string& sensor_id,
-                              const sensor_msgs::NavSatFix::ConstPtr& msg);
+                              const ros_msgs::sensor_msgs::NavSatFix::ConstPtr& msg);
   void HandleLandmarkMessage(
       const std::string& sensor_id,
-      const cartographer_ros_msgs::LandmarkList::ConstPtr& msg);
+      const ros_msgs::cartographer_ros_msgs::LandmarkList::ConstPtr& msg);
 
   std::unique_ptr<::cartographer::sensor::ImuData> ToImuData(
-      const sensor_msgs::Imu::ConstPtr& msg);
+      const ros_msgs::sensor_msgs::Imu::ConstPtr& msg);
   void HandleImuMessage(const std::string& sensor_id,
-                        const sensor_msgs::Imu::ConstPtr& msg);
+                        const ros_msgs::sensor_msgs::Imu::ConstPtr& msg);
   void HandleLaserScanMessage(const std::string& sensor_id,
-                              const sensor_msgs::LaserScan::ConstPtr& msg);
+                              const ros_msgs::sensor_msgs::LaserScan::ConstPtr& msg);
   void HandleMultiEchoLaserScanMessage(
       const std::string& sensor_id,
-      const sensor_msgs::MultiEchoLaserScan::ConstPtr& msg);
+      const ros_msgs::sensor_msgs::MultiEchoLaserScan::ConstPtr& msg);
   void HandlePointCloud2Message(const std::string& sensor_id,
-                                const sensor_msgs::PointCloud2::ConstPtr& msg);
+                                const ros_msgs::sensor_msgs::PointCloud2::ConstPtr& msg);
 
   const TfBridge& tf_bridge() const;
 

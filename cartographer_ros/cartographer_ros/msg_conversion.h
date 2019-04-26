@@ -23,59 +23,51 @@
 #include "cartographer/sensor/landmark_data.h"
 #include "cartographer/sensor/point_cloud.h"
 #include "cartographer/transform/rigid_transform.h"
-#include "cartographer_ros_msgs/LandmarkList.h"
-#include "geometry_msgs/Pose.h"
-#include "geometry_msgs/Transform.h"
-#include "geometry_msgs/TransformStamped.h"
-#include "nav_msgs/OccupancyGrid.h"
+#include "cartographer_ros/ros_msgs.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 #include "pcl_conversions/pcl_conversions.h"
-#include "sensor_msgs/Imu.h"
-#include "sensor_msgs/LaserScan.h"
-#include "sensor_msgs/MultiEchoLaserScan.h"
-#include "sensor_msgs/PointCloud2.h"
 
 namespace cartographer_ros {
 
-sensor_msgs::PointCloud2 ToPointCloud2Message(
+ros_msgs::sensor_msgs::PointCloud2 ToPointCloud2Message(
     int64_t timestamp, const std::string& frame_id,
     const ::cartographer::sensor::TimedPointCloud& point_cloud);
 
-geometry_msgs::Transform ToGeometryMsgTransform(
+ros_msgs::geometry_msgs::Transform ToGeometryMsgTransform(
     const ::cartographer::transform::Rigid3d& rigid3d);
 
-geometry_msgs::Pose ToGeometryMsgPose(
+ros_msgs::geometry_msgs::Pose ToGeometryMsgPose(
     const ::cartographer::transform::Rigid3d& rigid3d);
 
-geometry_msgs::Point ToGeometryMsgPoint(const Eigen::Vector3d& vector3d);
+ros_msgs::geometry_msgs::Point ToGeometryMsgPoint(const Eigen::Vector3d& vector3d);
 
 // Converts ROS message to point cloud. Returns the time when the last point
 // was acquired (different from the ROS timestamp). Timing of points is given in
 // the fourth component of each point relative to `Time`.
 std::tuple<::cartographer::sensor::PointCloudWithIntensities,
            ::cartographer::common::Time>
-ToPointCloudWithIntensities(const sensor_msgs::LaserScan& msg);
+ToPointCloudWithIntensities(const ros_msgs::sensor_msgs::LaserScan& msg);
 
 std::tuple<::cartographer::sensor::PointCloudWithIntensities,
            ::cartographer::common::Time>
-ToPointCloudWithIntensities(const sensor_msgs::MultiEchoLaserScan& msg);
+ToPointCloudWithIntensities(const ros_msgs::sensor_msgs::MultiEchoLaserScan& msg);
 
 std::tuple<::cartographer::sensor::PointCloudWithIntensities,
            ::cartographer::common::Time>
-ToPointCloudWithIntensities(const sensor_msgs::PointCloud2& message);
+ToPointCloudWithIntensities(const ros_msgs::sensor_msgs::PointCloud2& message);
 
 ::cartographer::sensor::LandmarkData ToLandmarkData(
-    const cartographer_ros_msgs::LandmarkList& landmark_list);
+    const ros_msgs::cartographer_ros_msgs::LandmarkList& landmark_list);
 
 ::cartographer::transform::Rigid3d ToRigid3d(
-    const geometry_msgs::TransformStamped& transform);
+    const ros_msgs::geometry_msgs::TransformStamped& transform);
 
-::cartographer::transform::Rigid3d ToRigid3d(const geometry_msgs::Pose& pose);
+::cartographer::transform::Rigid3d ToRigid3d(const ros_msgs::geometry_msgs::Pose& pose);
 
-Eigen::Vector3d ToEigen(const geometry_msgs::Vector3& vector3);
+Eigen::Vector3d ToEigen(const ros_msgs::geometry_msgs::Vector3& vector3);
 
-Eigen::Quaterniond ToEigen(const geometry_msgs::Quaternion& quaternion);
+Eigen::Quaterniond ToEigen(const ros_msgs::geometry_msgs::Quaternion& quaternion);
 
 // Converts from WGS84 (latitude, longitude, altitude) to ECEF.
 Eigen::Vector3d LatLongAltToEcef(double latitude, double longitude,
@@ -88,7 +80,7 @@ cartographer::transform::Rigid3d ComputeLocalFrameFromLatLong(double latitude,
 
 // Points to an occupancy grid message at a specific resolution from painted
 // submap slices obtained via ::cartographer::io::PaintSubmapSlices(...).
-std::unique_ptr<nav_msgs::OccupancyGrid> CreateOccupancyGridMsg(
+std::unique_ptr<ros_msgs::nav_msgs::OccupancyGrid> CreateOccupancyGridMsg(
     const cartographer::io::PaintSubmapSlicesResult& painted_slices,
     const double resolution, const std::string& frame_id,
     const ros::Time& time);

@@ -25,17 +25,11 @@
 #include "cartographer_ros/msg_conversion.h"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
-#include "nav_msgs/Odometry.h"
 #include "ros/ros.h"
 #include "ros/time.h"
 #include "rosbag/bag.h"
 #include "rosbag/view.h"
-#include "sensor_msgs/Imu.h"
-#include "sensor_msgs/LaserScan.h"
-#include "sensor_msgs/MultiEchoLaserScan.h"
-#include "sensor_msgs/PointCloud2.h"
 #include "tf2_eigen/tf2_eigen.h"
-#include "tf2_msgs/TFMessage.h"
 #include "tf2_ros/buffer.h"
 #include "urdf/model.h"
 
@@ -65,11 +59,11 @@ const double kMaxGapPointsData = 0.1;
 const double kMaxGapImuData = 0.05;
 const std::set<std::string> kPointDataTypes = {
     std::string(
-        ros::message_traits::DataType<sensor_msgs::PointCloud2>::value()),
+        ros::message_traits::DataType<ros_msgs::sensor_msgs::PointCloud2>::value()),
     std::string(ros::message_traits::DataType<
-                sensor_msgs::MultiEchoLaserScan>::value()),
+                ros_msgs::sensor_msgs::MultiEchoLaserScan>::value()),
     std::string(
-        ros::message_traits::DataType<sensor_msgs::LaserScan>::value())};
+        ros::message_traits::DataType<ros_msgs::sensor_msgs::LaserScan>::value())};
 
 std::unique_ptr<std::ofstream> CreateTimingFile(const std::string& frame_id) {
   auto timing_file = ::cartographer::common::make_unique<std::ofstream>(
@@ -95,7 +89,7 @@ std::unique_ptr<std::ofstream> CreateTimingFile(const std::string& frame_id) {
   return timing_file;
 }
 
-void CheckImuMessage(const sensor_msgs::Imu& imu_message) {
+void CheckImuMessage(const ros_msgs::sensor_msgs::Imu& imu_message) {
   auto linear_acceleration = ToEigen(imu_message.linear_acceleration);
   if (std::isnan(linear_acceleration.norm()) ||
       linear_acceleration.norm() < kMinLinearAcceleration ||
@@ -111,11 +105,11 @@ void CheckImuMessage(const sensor_msgs::Imu& imu_message) {
   }
 }
 
-bool IsValidPose(const geometry_msgs::Pose& pose) {
+bool IsValidPose(const ros_msgs::geometry_msgs::Pose& pose) {
   return ToRigid3d(pose).IsValid();
 }
 
-void CheckOdometryMessage(const nav_msgs::Odometry& message) {
+void CheckOdometryMessage(const ros_msgs::nav_msgs::Odometry& message) {
   const auto& pose = message.pose.pose;
   if (!IsValidPose(pose)) {
     LOG_FIRST_N(ERROR, 3) << "frame_id " << message.header.frame_id << " time "
@@ -125,7 +119,7 @@ void CheckOdometryMessage(const nav_msgs::Odometry& message) {
   }
 }
 
-void CheckTfMessage(const tf2_msgs::TFMessage& message) {
+void CheckTfMessage(const ros_msgs::tf2_msgs::TFMessage& message) {
   for (const auto& transform : message.transforms) {
     if (transform.header.frame_id == "map") {
       LOG_FIRST_N(ERROR, 1)
@@ -263,35 +257,35 @@ void Run(const std::string& bag_filename, const bool dump_timing) {
     ++message_index;
     std::string frame_id;
     ros::Time time;
-    if (message.isType<sensor_msgs::PointCloud2>()) {
-      auto msg = message.instantiate<sensor_msgs::PointCloud2>();
+    if (message.isType<ros_msgs::sensor_msgs::PointCloud2>()) {
+      auto msg = message.instantiate<ros_msgs::sensor_msgs::PointCloud2>();
       time = msg->header.stamp;
       frame_id = msg->header.frame_id;
       range_data_checker.CheckMessage(*msg);
-    } else if (message.isType<sensor_msgs::MultiEchoLaserScan>()) {
-      auto msg = message.instantiate<sensor_msgs::MultiEchoLaserScan>();
+    } else if (message.isType<ros_msgs::sensor_msgs::MultiEchoLaserScan>()) {
+      auto msg = message.instantiate<ros_msgs::sensor_msgs::MultiEchoLaserScan>();
       time = msg->header.stamp;
       frame_id = msg->header.frame_id;
       range_data_checker.CheckMessage(*msg);
-    } else if (message.isType<sensor_msgs::LaserScan>()) {
-      auto msg = message.instantiate<sensor_msgs::LaserScan>();
+    } else if (message.isType<ros_msgs::sensor_msgs::LaserScan>()) {
+      auto msg = message.instantiate<ros_msgs::sensor_msgs::LaserScan>();
       time = msg->header.stamp;
       frame_id = msg->header.frame_id;
       range_data_checker.CheckMessage(*msg);
-    } else if (message.isType<sensor_msgs::Imu>()) {
-      auto msg = message.instantiate<sensor_msgs::Imu>();
+    } else if (message.isType<ros_msgs::sensor_msgs::Imu>()) {
+      auto msg = message.instantiate<ros_msgs::sensor_msgs::Imu>();
       time = msg->header.stamp;
       frame_id = msg->header.frame_id;
       CheckImuMessage(*msg);
       num_imu_messages++;
       sum_imu_acceleration += ToEigen(msg->linear_acceleration).norm();
-    } else if (message.isType<nav_msgs::Odometry>()) {
-      auto msg = message.instantiate<nav_msgs::Odometry>();
+    } else if (message.isType<ros_msgs::nav_msgs::Odometry>()) {
+      auto msg = message.instantiate<ros_msgs::nav_msgs::Odometry>();
       time = msg->header.stamp;
       frame_id = msg->header.frame_id;
       CheckOdometryMessage(*msg);
-    } else if (message.isType<tf2_msgs::TFMessage>()) {
-      auto msg = message.instantiate<tf2_msgs::TFMessage>();
+    } else if (message.isType<ros_msgs::tf2_msgs::TFMessage>()) {
+      auto msg = message.instantiate<ros_msgs::tf2_msgs::TFMessage>();
       CheckTfMessage(*msg);
       continue;
     } else {
@@ -384,7 +378,7 @@ void Run(const std::string& bag_filename, const bool dump_timing) {
                  << " s, recommended is [0.0005, 0.05] s with no jitter.";
     }
     if (frame_properties.data_type ==
-            ros::message_traits::DataType<sensor_msgs::Imu>::value() &&
+            ros::message_traits::DataType<ros_msgs::sensor_msgs::Imu>::value() &&
         max_time_delta > kMaxGapImuData) {
       LOG(ERROR) << "IMU data (frame_id: \"" << entry_pair.first
                  << "\") has a large gap, largest is " << max_time_delta
